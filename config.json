@@ -1,6 +1,13 @@
 [
   {
     "tab": "Konfigurator",
+    "key": "length.enabledItemIds",
+    "label": "Aktive Artikel-IDs (Komma-getrennt)",
+    "type": "text",
+    "default": "260"
+  },
+  {
+    "tab": "Konfigurator",
     "key": "length.enabledPrefixes",
     "label": "Aktive Nummernstämme (Komma-getrennt)",
     "type": "text",

@@ -37,11 +37,11 @@ class LengthConfiguratorController extends Controller
     public function resolve(): Response
     {
         $itemId = (int) $this->request->get('itemId', 0);
-        $variationNumber = (string) $this->request->get('variationNumber', '');
+        $variationId = (int) $this->request->get('variationId', 0);
         $length = (int) $this->request->get('length', 0);
         $quantity = (float) $this->request->get('quantity', 1);
 
-        $result = $this->resolver->resolve($itemId, $variationNumber, $length, $quantity);
+        $result = $this->resolver->resolve($itemId, $variationId, $length, $quantity);
         return $this->json($result, $result['success'] ? 200 : 422);
     }
 
@@ -49,11 +49,11 @@ class LengthConfiguratorController extends Controller
     {
         $input = $this->request->all();
         $itemId = isset($input['itemId']) ? (int) $input['itemId'] : 0;
-        $variationNumber = isset($input['variationNumber']) ? (string) $input['variationNumber'] : '';
+        $variationId = isset($input['variationId']) ? (int) $input['variationId'] : 0;
         $length = isset($input['length']) ? (int) $input['length'] : 0;
         $quantity = isset($input['quantity']) ? (float) $input['quantity'] : 1.0;
 
-        $result = $this->resolver->resolve($itemId, $variationNumber, $length, $quantity);
+        $result = $this->resolver->resolve($itemId, $variationId, $length, $quantity);
         if (!$result['success']) {
             return $this->json($result, 422);
         }

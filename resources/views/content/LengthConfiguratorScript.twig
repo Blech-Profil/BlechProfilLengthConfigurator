@@ -1,0 +1,226 @@
+<script>
+(function () {
+    function toInt(value) {
+        var parsed = parseInt(value || '0', 10);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function parseIdsFromPath() {
+        var match = window.location.pathname.match(/_(\d+)_(\d+)\/?$/);
+        return match ? { itemId: toInt(match[1]), variationId: toInt(match[2]) } : { itemId: 0, variationId: 0 };
+    }
+
+    function getEnabledItemIds(root) {
+        return String(root.dataset.enabledItemIds || '')
+            .split(',')
+            .map(function (value) { return toInt(value.trim()); })
+            .filter(function (value) { return value > 0; });
+    }
+
+    function resolveIds(root) {
+        var pathIds = parseIdsFromPath();
+        return {
+            itemId: pathIds.itemId || toInt(root.dataset.contextItemId),
+            variationId: pathIds.variationId || toInt(root.dataset.contextVariationId)
+        };
+    }
+
+    function boot(root) {
+        if (!root) return;
+
+        var ids = resolveIds(root);
+        var enabledItemIds = getEnabledItemIds(root);
+
+        if (enabledItemIds.indexOf(ids.itemId) === -1) {
+            root.classList.add('d-none');
+            return;
+        }
+
+        root.classList.remove('d-none');
+        root.dataset.itemId = String(ids.itemId);
+        root.dataset.variationId = String(ids.variationId);
+
+        if (root.dataset.bpBooted === '1') return;
+        root.dataset.bpBooted = '1';
+
+        var lengthInput = root.querySelector('[data-bp-length-input]');
+        var quantityInput = root.querySelector('[data-bp-quantity-input]');
+        var checkButton = root.querySelector('[data-bp-check-button]');
+        var addButton = root.querySelector('[data-bp-add-button]');
+        var resultBox = root.querySelector('[data-bp-result]');
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function showResult(html, isError) {
+            resultBox.classList.remove('d-none', 'alert-light', 'alert-danger', 'alert-success');
+            resultBox.classList.add(isError ? 'alert-danger' : 'alert-success');
+            resultBox.innerHTML = html;
+        }
+
+        function values() {
+            var currentIds = resolveIds(root);
+            root.dataset.itemId = String(currentIds.itemId);
+            root.dataset.variationId = String(currentIds.variationId);
+
+            return {
+                itemId: currentIds.itemId,
+                variationId: currentIds.variationId,
+                length: toInt(lengthInput.value),
+                quantity: parseFloat(quantityInput.value || '1')
+            };
+        }
+
+        function resolveSelection() {
+            var data = values();
+            addButton.classList.add('d-none');
+
+            if (!data.itemId || !data.variationId) {
+                showResult('Artikel- oder Varianten-ID konnte nicht ermittelt werden. Kontext: ' +
+                    escapeHtml(root.dataset.contextItemId || '0') + ' / ' +
+                    escapeHtml(root.dataset.contextVariationId || '0'), true);
+                return Promise.reject(new Error('missing ids'));
+            }
+
+            if (!data.length || data.length < 1) {
+                showResult('Bitte eine gültige Wunschlänge eingeben.', true);
+                return Promise.reject(new Error('invalid length'));
+            }
+
+            checkButton.disabled = true;
+            checkButton.textContent = 'Prüfung läuft …';
+
+            var query = new URLSearchParams({
+                itemId: String(data.itemId),
+                variationId: String(data.variationId),
+                length: String(data.length),
+                quantity: String(data.quantity)
+            });
+
+            return fetch('/blechprofil-length-configurator/resolve?' + query.toString(), {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            })
+                .then(function (response) {
+                    return response.json().then(function (json) {
+                        if (!response.ok || !json.success) {
+                            throw new Error(json.message || 'Keine passende Lagerlänge gefunden.');
+                        }
+                        return json;
+                    });
+                })
+                .then(function (json) {
+                    var s = json.selected;
+                    showResult(
+                        '<strong>Ausgangsvariante:</strong> ' + escapeHtml(json.sourceVariationNumber) +
+                        ' (ID ' + json.sourceVariationId + ')' +
+                        '<br><strong>Passende Lagerlänge:</strong> ' + escapeHtml(s.variationNumber) +
+                        ' (ID ' + s.variationId + ')' +
+                        '<br>Rohlänge: ' + s.rawLength + ' mm' +
+                        '<br>Nettobestand: ' + s.netStock +
+                        '<br>Rechnerischer Rest je Stück: ' + s.restPerPiece + ' mm',
+                        false
+                    );
+                    addButton.classList.remove('d-none');
+                    return json;
+                })
+                .catch(function (error) {
+                    if (error.message !== 'invalid length' && error.message !== 'missing ids') {
+                        showResult(escapeHtml(error.message), true);
+                    }
+                    throw error;
+                })
+                .finally(function () {
+                    checkButton.disabled = false;
+                    checkButton.textContent = 'Passende Lagerlänge prüfen';
+                });
+        }
+
+        function addToBasket() {
+            var data = values();
+            addButton.disabled = true;
+            addButton.textContent = 'Wird hinzugefügt …';
+
+            var form = new URLSearchParams();
+            form.append('itemId', String(data.itemId));
+            form.append('variationId', String(data.variationId));
+            form.append('length', String(data.length));
+            form.append('quantity', String(data.quantity));
+
+            fetch('/blechprofil-length-configurator/add', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                },
+                body: form.toString()
+            })
+                .then(function (response) {
+                    return response.json().then(function (json) {
+                        if (!response.ok || !json.success) {
+                            throw new Error(json.message || 'Warenkorb konnte nicht aktualisiert werden.');
+                        }
+                        return json;
+                    });
+                })
+                .then(function (json) {
+                    var s = json.selection.selected;
+                    showResult(
+                        '<strong>Im Warenkorb:</strong> ' + data.quantity + ' × ' + data.length + ' mm' +
+                        '<br>Verwendete Lager-Variante: ' + escapeHtml(s.variationNumber) + ' (ID ' + s.variationId + ')',
+                        false
+                    );
+                    addButton.classList.add('d-none');
+
+                    document.dispatchEvent(new CustomEvent('blechprofil:length-configurator:added', { detail: json }));
+
+                    if (window.ceresStore && window.ceresStore.dispatch) {
+                        try { window.ceresStore.dispatch('loadBasketData'); } catch (e) {}
+                    }
+                })
+                .catch(function (error) {
+                    showResult(escapeHtml(error.message), true);
+                })
+                .finally(function () {
+                    addButton.disabled = false;
+                    addButton.textContent = 'Wunschlänge in den Warenkorb';
+                });
+        }
+
+        checkButton.addEventListener('click', function () {
+            resolveSelection().catch(function () {});
+        });
+
+        addButton.addEventListener('click', addToBasket);
+
+        lengthInput.addEventListener('input', function () {
+            addButton.classList.add('d-none');
+            resultBox.classList.add('d-none');
+        });
+    }
+
+    function bootAll() {
+        document.querySelectorAll('[data-blechprofil-length-configurator]').forEach(boot);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootAll);
+    } else {
+        bootAll();
+    }
+
+    document.addEventListener('afterVariationChanged', function () {
+        setTimeout(bootAll, 50);
+    });
+
+    window.addEventListener('popstate', bootAll);
+    setTimeout(bootAll, 500);
+})();
+</script>
