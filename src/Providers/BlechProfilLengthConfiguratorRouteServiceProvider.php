@@ -10,6 +10,11 @@ class BlechProfilLengthConfiguratorRouteServiceProvider extends RouteServiceProv
     public function map(Router $router)
     {
         $router->get(
+            'blechprofil-length-configurator/enabled',
+            'BlechProfilLengthConfigurator\\Controllers\\LengthConfiguratorController@enabled'
+        );
+
+        $router->get(
             'blechprofil-length-configurator/resolve',
             'BlechProfilLengthConfigurator\\Controllers\\LengthConfiguratorController@resolve'
         );

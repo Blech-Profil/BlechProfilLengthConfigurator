@@ -4,11 +4,11 @@
     "de": "Blech + Profil Wunschlängen-Konfigurator",
     "en": "Blech + Profil custom length configurator"
   },
-  "description": "Alpha plugin for plentyShop LTS: custom-length configurator using server-side variation-number stem gating before rendering.",
+  "description": "Alpha plugin for plentyShop LTS: custom-length configurator activated by a variation property selection.",
   "namespace": "BlechProfilLengthConfigurator",
   "author": "Steffen Schreiber",
   "type": "template",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "keywords": [
     "plentyShop LTS",
     "custom length",
@@ -25,7 +25,7 @@
     {
       "key": "BlechProfilLengthConfigurator\\Containers\\LengthConfiguratorContainer",
       "name": "Blech + Profil Wunschlängen-Konfigurator",
-      "description": "Zeigt den Wunschlängen-Konfigurator vor dem Warenkorb-Button an und lädt die Alpha-JavaScript-Logik direkt mit.",
+      "description": "Lädt den zunächst unsichtbaren Wunschlängen-Konfigurator vor dem Warenkorb-Button. Sichtbarkeit wird über Eigenschaft und Auswahlwert der aktuellen Variante gesteuert.",
       "defaultLayoutContainer": "Ceres::SingleItem.BeforeAddToBasket"
     }
   ]

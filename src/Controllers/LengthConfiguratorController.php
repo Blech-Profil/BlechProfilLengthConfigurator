@@ -7,6 +7,7 @@ use Plenty\Plugin\Controller;
 use Plenty\Plugin\Http\Request;
 use Plenty\Plugin\Http\Response;
 use BlechProfilLengthConfigurator\Services\LengthResolverService;
+use BlechProfilLengthConfigurator\Services\VariationEligibilityService;
 
 class LengthConfiguratorController extends Controller
 {
@@ -22,16 +23,27 @@ class LengthConfiguratorController extends Controller
     /** @var BasketService */
     private $basketService;
 
+    /** @var VariationEligibilityService */
+    private $eligibility;
+
     public function __construct(
         Request $request,
         Response $response,
         LengthResolverService $resolver,
-        BasketService $basketService
+        BasketService $basketService,
+        VariationEligibilityService $eligibility
     ) {
         $this->request = $request;
         $this->response = $response;
         $this->resolver = $resolver;
         $this->basketService = $basketService;
+        $this->eligibility = $eligibility;
+    }
+
+    public function enabled(): Response
+    {
+        $variationId = (int) $this->request->get('variationId', 0);
+        return $this->json($this->eligibility->check($variationId), 200);
     }
 
     public function resolve(): Response

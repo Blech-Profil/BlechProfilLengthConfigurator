@@ -1,17 +1,17 @@
 [
   {
     "tab": "Konfigurator",
-    "key": "length.enabledItemIds",
-    "label": "Aktive Artikel-IDs (Komma-getrennt)",
+    "key": "length.activationPropertyId",
+    "label": "Eigenschafts-ID 'Zuschnitt möglich'",
     "type": "text",
-    "default": "260"
+    "default": "48"
   },
   {
     "tab": "Konfigurator",
-    "key": "length.enabledPrefixes",
-    "label": "Aktive Variantenstämme (exakt, Komma-getrennt)",
+    "key": "length.activationSelectionId",
+    "label": "Auswahl-ID für 'Ja'",
     "type": "text",
-    "default": "ERD0204305"
+    "default": "71"
   },
   {
     "tab": "Konfigurator",

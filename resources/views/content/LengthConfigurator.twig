@@ -1,10 +1,12 @@
 <div class="blechprofil-length-configurator card mb-3"
      data-blechprofil-length-configurator
-     data-context-item-id="{{ contextItemId }}"
-     data-context-variation-id="{{ contextVariationId }}"
+     data-activation-property-id="{{ activationPropertyId }}"
+     data-activation-selection-id="{{ activationSelectionId }}"
      data-min-length="{{ minLength }}"
      data-max-length="{{ maxLength }}"
-     data-saw-kerf="{{ sawKerf }}">
+     data-saw-kerf="{{ sawKerf }}"
+     hidden
+     style="display:none !important;">
     <div class="card-body">
         <strong class="d-block mb-2">Wunschlänge konfigurieren</strong>
 
@@ -45,7 +47,7 @@
         </button>
 
         <small class="d-block text-muted mt-2" data-bp-debug>
-            Alpha 0.1.7 · Variantenstamm freigegeben · {{ contextVariationNumber }} · Artikel-ID {{ contextItemId }} · Varianten-ID {{ contextVariationId }}
+            Alpha 0.1.9 · Freigabe über Eigenschaft {{ activationPropertyId }} · Ja-Auswahl {{ activationSelectionId }}
         </small>
     </div>
 </div>
@@ -57,7 +59,17 @@
         var roots = document.querySelectorAll('[data-blechprofil-length-configurator]');
         root = roots.length ? roots[roots.length - 1] : null;
     }
-    if (!root) return;
+    if (!root || root.getAttribute('data-bp-booted') === '1') return;
+    root.setAttribute('data-bp-booted', '1');
+
+    var lengthInput = root.querySelector('[data-bp-length-input]');
+    var quantityInput = root.querySelector('[data-bp-quantity-input]');
+    var checkButton = root.querySelector('[data-bp-check-button]');
+    var addButton = root.querySelector('[data-bp-add-button]');
+    var resultBox = root.querySelector('[data-bp-result]');
+    var debugBox = root.querySelector('[data-bp-debug]');
+    var lastCheckedVariationId = 0;
+    var eligibilityRequestNo = 0;
 
     function toInt(value) {
         var parsed = parseInt(value || '0', 10);
@@ -69,26 +81,88 @@
         return match ? { itemId: toInt(match[1]), variationId: toInt(match[2]) } : { itemId: 0, variationId: 0 };
     }
 
-    function resolveIds() {
-        var pathIds = parseIdsFromPath();
-        return {
-            itemId: pathIds.itemId || toInt(root.getAttribute('data-context-item-id')),
-            variationId: pathIds.variationId || toInt(root.getAttribute('data-context-variation-id'))
-        };
+    function getCurrentIds() {
+        var ids = parseIdsFromPath();
+
+        try {
+            if (
+                window.vueApp && vueApp.$store && vueApp.$store.state && vueApp.$store.state.items &&
+                ids.itemId && vueApp.$store.state.items[ids.itemId] &&
+                vueApp.$store.state.items[ids.itemId].variation &&
+                vueApp.$store.state.items[ids.itemId].variation.documents &&
+                vueApp.$store.state.items[ids.itemId].variation.documents[0] &&
+                vueApp.$store.state.items[ids.itemId].variation.documents[0].data
+            ) {
+                var data = vueApp.$store.state.items[ids.itemId].variation.documents[0].data;
+                if (data.item && data.item.id) ids.itemId = toInt(data.item.id);
+                if (data.variation && data.variation.id) ids.variationId = toInt(data.variation.id);
+            }
+        } catch (e) {}
+
+        return ids;
     }
 
-    var ids = resolveIds();
-    root.setAttribute('data-item-id', String(ids.itemId));
-    root.setAttribute('data-variation-id', String(ids.variationId));
+    function setVisible(visible) {
+        if (visible) {
+            root.hidden = false;
+            root.style.removeProperty('display');
+        } else {
+            root.hidden = true;
+            root.style.setProperty('display', 'none', 'important');
+            addButton.classList.add('d-none');
+            resultBox.classList.add('d-none');
+        }
+    }
 
-    if (root.getAttribute('data-bp-booted') === '1') return;
-    root.setAttribute('data-bp-booted', '1');
+    function checkEligibility(force) {
+        var ids = getCurrentIds();
+        var propertyId = toInt(root.getAttribute('data-activation-property-id'));
+        var selectionId = toInt(root.getAttribute('data-activation-selection-id'));
 
-    var lengthInput = root.querySelector('[data-bp-length-input]');
-    var quantityInput = root.querySelector('[data-bp-quantity-input]');
-    var checkButton = root.querySelector('[data-bp-check-button]');
-    var addButton = root.querySelector('[data-bp-add-button]');
-    var resultBox = root.querySelector('[data-bp-result]');
+        if (!ids.itemId || !ids.variationId || !propertyId || !selectionId) {
+            setVisible(false);
+            return;
+        }
+
+        if (!force && ids.variationId === lastCheckedVariationId) {
+            return;
+        }
+
+        lastCheckedVariationId = ids.variationId;
+        var requestNo = ++eligibilityRequestNo;
+        setVisible(false);
+
+        fetch('/blechprofil-length-configurator/enabled?variationId=' + encodeURIComponent(String(ids.variationId)), {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (json) {
+                if (requestNo !== eligibilityRequestNo) return;
+
+                if (json && json.enabled === true) {
+                    root.setAttribute('data-item-id', String(ids.itemId));
+                    root.setAttribute('data-variation-id', String(ids.variationId));
+                    debugBox.textContent = 'Alpha 0.1.9 · Zuschnitt möglich = Ja · Artikel-ID ' + ids.itemId + ' · Varianten-ID ' + ids.variationId + ' · Eigenschaft ' + propertyId + ' · Auswahl ' + selectionId;
+                    setVisible(true);
+                } else {
+                    setVisible(false);
+                }
+            })
+            .catch(function () {
+                if (requestNo === eligibilityRequestNo) setVisible(false);
+            });
+    }
+
+    function currentValues() {
+        var ids = getCurrentIds();
+        return {
+            itemId: ids.itemId,
+            variationId: ids.variationId,
+            length: toInt(lengthInput.value),
+            quantity: parseFloat(quantityInput.value || '1')
+        };
+    }
 
     function escapeHtml(value) {
         return String(value)
@@ -105,21 +179,8 @@
         resultBox.innerHTML = html;
     }
 
-    function values() {
-        var currentIds = resolveIds();
-        root.setAttribute('data-item-id', String(currentIds.itemId));
-        root.setAttribute('data-variation-id', String(currentIds.variationId));
-
-        return {
-            itemId: currentIds.itemId,
-            variationId: currentIds.variationId,
-            length: toInt(lengthInput.value),
-            quantity: parseFloat(quantityInput.value || '1')
-        };
-    }
-
     function resolveSelection() {
-        var data = values();
+        var data = currentValues();
         addButton.classList.add('d-none');
 
         if (!data.itemId || !data.variationId) {
@@ -162,7 +223,6 @@
                     '<br><strong>Passende Lagerlänge:</strong> ' + escapeHtml(s.variationNumber) +
                     ' (ID ' + s.variationId + ')' +
                     '<br>Rohlänge: ' + s.rawLength + ' mm' +
-                    '<br>Verkaufbar: ja' +
                     '<br>Rechnerischer Rest je Stück: ' + s.restPerPiece + ' mm',
                     false
                 );
@@ -178,7 +238,7 @@
     }
 
     function addToBasket() {
-        var data = values();
+        var data = currentValues();
         addButton.disabled = true;
         addButton.textContent = 'Wird hinzugefügt …';
 
@@ -234,5 +294,19 @@
         addButton.classList.add('d-none');
         resultBox.classList.add('d-none');
     });
+
+    setVisible(false);
+    checkEligibility(true);
+
+    // plentyShop LTS meldet Variantenwechsel clientseitig. Dann lesen wir die aktuelle
+    // Varianten-ID bevorzugt direkt aus dem Vue/Vuex-Store statt nur aus der URL.
+    document.addEventListener('onVariationChanged', function () {
+        window.setTimeout(function () { checkEligibility(true); }, 50);
+    });
+
+    // Fallback für individuelle Themes/Plugins, die das Event nicht weiterreichen.
+    window.setInterval(function () {
+        checkEligibility(false);
+    }, 750);
 })();
 </script>

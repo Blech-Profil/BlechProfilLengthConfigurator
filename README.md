@@ -1,29 +1,30 @@
-# Blech + Profil Wunschlängen-Konfigurator – Alpha 0.1.7
+# Blech + Profil Wunschlängen-Konfigurator – Alpha 0.1.9
 
-Alpha-Test für plentyShop LTS.
+Testversion für plentyShop LTS.
 
-## Sichtbarkeitslogik
+## Freigabe über Varianten-Eigenschaft
 
-Der Konfigurator wird nur gerendert, wenn **beides** passt:
+Der Konfigurator wird nur angezeigt, wenn die aktuell gewählte Variante folgende Kombination besitzt:
 
-1. Die Plenty Artikel-ID steht unter `Aktive Artikel-IDs`.
-2. Die aktuelle Plenty-Variantennummer besitzt exakt einen freigegebenen Stamm vor dem letzten Unterstrich.
+- Eigenschafts-ID: **48** (`Zuschnitt möglich`)
+- Auswahl-ID: **71** (`Ja`)
 
-Beispiel:
+Auswahl-ID **72** (`Nein`) oder eine fehlende Eigenschaft blendet den Konfigurator aus.
 
-- `ERD0204305_1000` → Stamm `ERD0204305` → sichtbar, wenn `ERD0204305` freigegeben ist.
-- `ERD0184305_1000` → Stamm `ERD0184305` → nicht sichtbar.
+Die IDs sind in der Plugin-Konfiguration änderbar. Standardwerte in Alpha 0.1.9 sind bereits 48 und 71.
 
-Damit kann ein Plenty-Artikel wie Artikel 260 viele Durchmesser/Längen enthalten, ohne dass der Konfigurator automatisch bei allen Varianten angezeigt wird.
+## Variantenwechsel
 
-## Testkonfiguration
+Alpha 0.1.9 liest die aktuelle Varianten-ID bevorzugt direkt aus dem plentyShop-LTS Vue/Vuex-Store und reagiert zusätzlich auf `onVariationChanged`. Damit soll die Freigabe ohne F5 direkt nach einem Variantenwechsel neu geprüft werden.
 
-- Aktive Artikel-IDs: `260`
-- Aktive Variantenstämme: `ERD0204305`
-- Minimale Wunschlänge: `50`
-- Maximale Wunschlänge: `6000`
-- Sägeschnitt: `4`
+## Längenlogik
 
-## Container
+Die tatsächliche Rohmaterialauswahl bleibt über das Variantennummer-Muster `STAMM_LAENGE` aufgebaut, z. B. `ERD0204305_1000`.
 
-`Ceres::SingleItem.BeforeAddToBasket`
+Beispiel bei 4 mm Sägeschnitt:
+
+- Wunschlänge 1268 mm
+- Bedarf 1272 mm
+- kleinste passende verkaufbare Lagerlänge z. B. `ERD0204305_1500`
+
+Alpha-Status: Die exakte Nettobestands-/Mehrfachzuschnittoptimierung folgt nach erfolgreichem Sichtbarkeits- und Variantentest.
