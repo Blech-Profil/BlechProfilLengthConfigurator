@@ -4,7 +4,6 @@ namespace BlechProfilLengthConfigurator\Services;
 
 use IO\Services\ItemService;
 use Plenty\Modules\Item\Variation\Contracts\VariationRepositoryContract;
-use Plenty\Modules\Item\VariationStock\Contracts\VariationStockRepositoryContract;
 use Plenty\Plugin\ConfigRepository;
 
 class LengthResolverService
@@ -15,21 +14,16 @@ class LengthResolverService
     /** @var VariationRepositoryContract */
     private $variationRepository;
 
-    /** @var VariationStockRepositoryContract */
-    private $stockRepository;
-
     /** @var ConfigRepository */
     private $config;
 
     public function __construct(
         ItemService $itemService,
         VariationRepositoryContract $variationRepository,
-        VariationStockRepositoryContract $stockRepository,
         ConfigRepository $config
     ) {
         $this->itemService = $itemService;
         $this->variationRepository = $variationRepository;
-        $this->stockRepository = $stockRepository;
         $this->config = $config;
     }
 
@@ -56,19 +50,23 @@ class LengthResolverService
             return $this->error('Die Wunschlänge liegt außerhalb des erlaubten Bereichs.');
         }
 
+        // getVariationIds liefert laut IO-Dokumentation aktive und verkaufbare Varianten des Artikels.
         $variationIds = $this->itemService->getVariationIds($itemId);
 
         if (!is_array($variationIds) || count($variationIds) === 0) {
-            return $this->error('Für den Artikel wurden keine Varianten gefunden.');
+            return $this->error('Für den Artikel wurden keine aktiven und verkaufbaren Varianten gefunden.');
         }
 
         $variationIds = array_values(array_unique(array_map('intval', $variationIds)));
 
-        if (!in_array($currentVariationId, $variationIds, true)) {
-            return $this->error('Die gewählte Variante gehört nicht zum angegebenen Artikel.');
+        // Die aufgerufene Variante kann wegen Lager-/Shopregeln theoretisch nicht in getVariationIds stecken.
+        // Für die Gruppenerkennung laden wir sie dann trotzdem separat dazu.
+        $idsToLoad = $variationIds;
+        if (!in_array($currentVariationId, $idsToLoad, true)) {
+            $idsToLoad[] = $currentVariationId;
         }
 
-        $variations = $this->variationRepository->showMultiple($variationIds, []);
+        $variations = $this->variationRepository->showMultiple($idsToLoad, []);
         $currentVariationNumber = '';
 
         foreach ($variations as $variation) {
@@ -98,10 +96,13 @@ class LengthResolverService
         foreach ($variations as $variation) {
             $number = (string) $variation->number;
             $id = (int) $variation->id;
-            $isActive = (bool) $variation->isActive;
             $candidateParsed = $this->parseVariationNumber($number);
 
-            if (!$isActive || $id <= 0 || $candidateParsed === null || $candidateParsed['stem'] !== $stem) {
+            if ($id <= 0 || $candidateParsed === null || $candidateParsed['stem'] !== $stem) {
+                continue;
+            }
+
+            if (!in_array($id, $variationIds, true)) {
                 continue;
             }
 
@@ -110,8 +111,9 @@ class LengthResolverService
                 continue;
             }
 
-            $netStock = $this->getNetStock($id);
-            if ($netStock + 0.00001 < $quantity) {
+            // Alpha 0.1.4: IO prüft für uns, ob die Variation im Shop grundsätzlich verkaufbar ist.
+            // Exakte Nettobestandsmengen je Lager kommen nach dem UI-/Routing-Test wieder dazu.
+            if (!$this->itemService->getVariationIsSalable($id)) {
                 continue;
             }
 
@@ -120,13 +122,13 @@ class LengthResolverService
                 'variationNumber' => $number,
                 'externalId' => (string) $variation->externalId,
                 'rawLength' => $rawLength,
-                'netStock' => $netStock,
+                'salable' => true,
                 'restPerPiece' => max(0, $rawLength - $desiredLength - $sawKerf)
             ];
         }
 
         if (count($candidates) === 0) {
-            return $this->error('Keine passende Lagerlänge mit ausreichendem Nettobestand gefunden.');
+            return $this->error('Keine passende verkaufbare Lagerlänge gefunden.');
         }
 
         usort($candidates, function (array $a, array $b): int {
@@ -150,25 +152,8 @@ class LengthResolverService
             'requiredPerPiece' => $requiredPerPiece,
             'selected' => $selected,
             'candidateCount' => count($candidates),
-            'alphaNote' => 'Alpha 0.1.3 nutzt Artikel-/Varianten-ID als Primärschlüssel. Mehrteilige Zuschnittoptimierung folgt später.'
+            'alphaNote' => 'Alpha 0.1.4: UI/ID-/Routen-Test. Exakte Nettobestandsmenge wird nach erfolgreichem Frontend-Test ergänzt.'
         ];
-    }
-
-    private function getNetStock(int $variationId): float
-    {
-        $stockRows = $this->stockRepository->listStockByWarehouse(
-            $variationId,
-            ['variationId', 'warehouseId', 'netStock'],
-            1,
-            200
-        );
-
-        $sum = 0.0;
-        foreach ($stockRows as $row) {
-            $sum += (float) $row->netStock;
-        }
-
-        return $sum;
     }
 
     private function parseVariationNumber(string $number): ?array

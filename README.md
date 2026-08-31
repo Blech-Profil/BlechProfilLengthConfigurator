@@ -1,27 +1,29 @@
-# Blech + Profil Wunschlängen-Konfigurator – Alpha 0.1.3
+# Blech + Profil Wunschlängen-Konfigurator – Alpha 0.1.4
 
-Test-Plugin für plentyShop LTS.
+Diagnose-/Funktionsalpha für plentyShop LTS.
 
-## Alpha 0.1.3
+## Wichtigste Änderung gegenüber 0.1.3
 
-- Primärschlüssel im Frontend: Plenty Artikel-ID + Varianten-ID.
-- Standard-Testartikel: Artikel-ID `260`.
-- Die Variantennummer wird serverseitig anhand der Varianten-ID geladen.
-- Nummernstamm `ERD0204305` wird weiterhin zur Gruppierung kompatibler Lagerlängen verwendet.
-- Beispiel: Variante `14665` -> `ERD0204305_1000`.
-- Wunsch 1268 mm + 4 mm Sägeschnitt -> kleinste passende aktive Lagerlänge mit Nettobestand, z. B. `ERD0204305_1500`.
-- Script ist separat an `Ceres::SingleItem.AfterScriptsLoaded` angebunden.
+Die JavaScript-Logik wird **direkt zusammen mit dem sichtbaren Konfigurator** in `Ceres::SingleItem.BeforeAddToBasket` geladen. Eine zweite Verknüpfung mit `Ceres::SingleItem.AfterScriptsLoaded` ist nicht mehr nötig.
 
-## Konfiguration
+Der Testartikel wird primär über die URL-IDs erkannt:
 
-- Aktive Artikel-IDs: `260`
-- Aktive Nummernstämme: `ERD0204305`
-- Min.: `50 mm`
-- Max.: `6000 mm`
-- Sägeschnitt: `4 mm`
+- Artikel-ID: `260`
+- Beispiel-Varianten-ID: `14665`
+- Beispiel-Variantennummer: `ERD0204305_1000`
 
-## Noch nicht enthalten
+## Test
 
-- individuelle Preisberechnung nach Wunschlänge
-- Mehrschnittoptimierung wie 1890 + 1900 -> 1x 4000
-- Reststückverwaltung
+Auf dem Artikel 260 sollte vor dem Warenkorb-Button ein Kasten erscheinen. Unten steht zur Kontrolle z. B.:
+
+`Alpha 0.1.4 · Artikel-ID 260 · Varianten-ID 14665`
+
+Bei 1268 mm und 4 mm Sägeschnitt soll die kleinste passende verkaufbare Variante gewählt werden, z. B. `ERD0204305_1500`.
+
+## Hinweis zum Bestand
+
+Alpha 0.1.4 verwendet zunächst `IO\Services\ItemService::getVariationIsSalable()` statt einer exakten Lagerbestandsabfrage. So testen wir zuerst zuverlässig Container, ID-Erkennung, Routing und Variantenauswahl. Die exakte Nettobestandsmenge und spätere Zuschnittoptimierung werden danach ergänzt.
+
+## Plugin-Reihenfolge
+
+Wenn der Container trotz aktiver Verknüpfung nicht erscheint, im Plugin-Set die Reihenfolge prüfen. Für Erweiterungs-/Theme-Plugins empfiehlt Plenty eine Position zwischen IO und plentyShop LTS/Ceres, z. B. IO 999, dieses Plugin 998, Ceres 997.

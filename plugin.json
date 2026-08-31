@@ -8,7 +8,7 @@
   "namespace": "BlechProfilLengthConfigurator",
   "author": "Steffen Schreiber",
   "type": "template",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "keywords": [
     "plentyShop LTS",
     "custom length",
@@ -25,14 +25,8 @@
     {
       "key": "BlechProfilLengthConfigurator\\Containers\\LengthConfiguratorContainer",
       "name": "Blech + Profil Wunschlängen-Konfigurator",
-      "description": "Zeigt den Wunschlängen-Konfigurator vor dem Warenkorb-Button an.",
+      "description": "Zeigt den Wunschlängen-Konfigurator vor dem Warenkorb-Button an und lädt die Alpha-JavaScript-Logik direkt mit.",
       "defaultLayoutContainer": "Ceres::SingleItem.BeforeAddToBasket"
-    },
-    {
-      "key": "BlechProfilLengthConfigurator\\Containers\\LengthConfiguratorScriptContainer",
-      "name": "Blech + Profil Wunschlängen-Konfigurator Script",
-      "description": "Lädt die JavaScript-Logik des Wunschlängen-Konfigurators.",
-      "defaultLayoutContainer": "Ceres::SingleItem.AfterScriptsLoaded"
     }
   ]
 }
