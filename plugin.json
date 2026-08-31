@@ -1,0 +1,32 @@
+{
+  "name": "BlechProfilLengthConfigurator",
+  "marketplaceName": {
+    "de": "Blech + Profil Wunschlängen-Konfigurator",
+    "en": "Blech + Profil custom length configurator"
+  },
+  "description": "Alpha plugin for plentyShop LTS: custom-length configurator with robust single-item container data handling.",
+  "namespace": "BlechProfilLengthConfigurator",
+  "author": "Steffen Schreiber",
+  "type": "template",
+  "version": "0.1.2",
+  "keywords": [
+    "plentyShop LTS",
+    "custom length",
+    "cutting",
+    "stainless steel",
+    "basket"
+  ],
+  "require": {
+    "IO": ">=5.0.0",
+    "Ceres": ">=5.0.0"
+  },
+  "serviceProvider": "BlechProfilLengthConfigurator\\Providers\\BlechProfilLengthConfiguratorServiceProvider",
+  "dataProviders": [
+    {
+      "key": "BlechProfilLengthConfigurator\\Containers\\LengthConfiguratorContainer",
+      "name": "Blech + Profil Wunschlängen-Konfigurator",
+      "description": "Zeigt den Wunschlängen-Konfigurator vor dem Warenkorb-Button an.",
+      "defaultLayoutContainer": "Ceres::SingleItem.BeforeAddToBasket"
+    }
+  ]
+}

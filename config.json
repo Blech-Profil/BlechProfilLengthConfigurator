@@ -1,0 +1,30 @@
+[
+  {
+    "tab": "Konfigurator",
+    "key": "length.enabledPrefixes",
+    "label": "Aktive Nummernstämme (Komma-getrennt)",
+    "type": "text",
+    "default": "ERD0204305"
+  },
+  {
+    "tab": "Konfigurator",
+    "key": "length.minLength",
+    "label": "Minimale Wunschlänge in mm",
+    "type": "text",
+    "default": "50"
+  },
+  {
+    "tab": "Konfigurator",
+    "key": "length.maxLength",
+    "label": "Maximale Wunschlänge in mm",
+    "type": "text",
+    "default": "6000"
+  },
+  {
+    "tab": "Konfigurator",
+    "key": "length.sawKerf",
+    "label": "Sägeschnitt / Zuschlag je Teil in mm",
+    "type": "text",
+    "default": "4"
+  }
+]
