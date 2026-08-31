@@ -1,30 +1,39 @@
-# Blech + Profil Wunschlängen-Konfigurator – Alpha 0.1.9
+# Blech + Profil Wunschlängen-Konfigurator – Alpha 0.2.0
 
-Testversion für plentyShop LTS.
+Diese Alpha schaltet den Konfigurator über eine Plenty-Auswahl-Eigenschaft frei.
 
-## Freigabe über Varianten-Eigenschaft
+## Testkonfiguration
 
-Der Konfigurator wird nur angezeigt, wenn die aktuell gewählte Variante folgende Kombination besitzt:
+- Eigenschaft `Zuschnitt möglich`: ID **48**
+- Auswahl `Ja`: ID **71**
+- Auswahl `Nein`: ID **72**
+- Variante 14665 soll für den Test die Auswahl **71 = Ja** besitzen.
 
-- Eigenschafts-ID: **48** (`Zuschnitt möglich`)
-- Auswahl-ID: **71** (`Ja`)
+Im Plugin eintragen:
 
-Auswahl-ID **72** (`Nein`) oder eine fehlende Eigenschaft blendet den Konfigurator aus.
+- Eigenschafts-ID: `48`
+- Ja-Auswahl-ID: `71`
+- Minimale Wunschlänge: `50`
+- Maximale Wunschlänge: `6000`
+- Sägeschnitt: `4`
 
-Die IDs sind in der Plugin-Konfiguration änderbar. Standardwerte in Alpha 0.1.9 sind bereits 48 und 71.
+## Änderung in 0.2.0
 
-## Variantenwechsel
+Die Freigabe wird nicht mehr dadurch geprüft, dass rekursiv in `ItemService::getVariation()` nach Property-Daten gesucht wird. Stattdessen nutzt das Plugin die Plenty PIM VariationDataInterface mit zwei Filtern:
 
-Alpha 0.1.9 liest die aktuelle Varianten-ID bevorzugt direkt aus dem plentyShop-LTS Vue/Vuex-Store und reagiert zusätzlich auf `onVariationChanged`. Damit soll die Freigabe ohne F5 direkt nach einem Variantenwechsel neu geprüft werden.
+1. konkrete Varianten-ID
+2. Property-Selection-ID 71
 
-## Längenlogik
+Zusätzlich wird geprüft, ob Auswahl 71 tatsächlich zur Eigenschaft 48 gehört.
 
-Die tatsächliche Rohmaterialauswahl bleibt über das Variantennummer-Muster `STAMM_LAENGE` aufgebaut, z. B. `ERD0204305_1000`.
+## Diagnose
 
-Beispiel bei 4 mm Sägeschnitt:
+Normalerweise bleibt die Diagnose unsichtbar. Für den Test kann an die Artikel-URL angehängt werden:
 
-- Wunschlänge 1268 mm
-- Bedarf 1272 mm
-- kleinste passende verkaufbare Lagerlänge z. B. `ERD0204305_1500`
+`?bpdebug=1`
 
-Alpha-Status: Die exakte Nettobestands-/Mehrfachzuschnittoptimierung folgt nach erfolgreichem Sichtbarkeits- und Variantentest.
+Dann zeigt das Plugin auch dann einen Diagnosekasten, wenn der Konfigurator nicht freigegeben wird. Dort stehen Varianten-ID, Variantennummer, Eigenschaft, Auswahl und die genaue Servermeldung.
+
+## Sichtbarkeit der Eigenschaft
+
+Für die interne Freigabelogik muss die Eigenschaft nicht als sichtbare Kundeninformation auf der Artikelseite dargestellt werden. Sie dient nur als Steuermerkmal an der Variante.

@@ -45,19 +45,26 @@
         <button type="button" class="btn btn-primary btn-block d-none" data-bp-add-button>
             Wunschlänge in den Warenkorb
         </button>
-
-        <small class="d-block text-muted mt-2" data-bp-debug>
-            Alpha 0.1.9 · Freigabe über Eigenschaft {{ activationPropertyId }} · Ja-Auswahl {{ activationSelectionId }}
-        </small>
     </div>
 </div>
 
+<div class="alert alert-warning mb-3 d-none"
+     data-bp-diagnostic
+     style="font-size:0.875rem; white-space:pre-wrap;"></div>
+
 <script>
 (function () {
-    var root = document.currentScript ? document.currentScript.previousElementSibling : null;
+    var script = document.currentScript;
+    var diagnostic = script ? script.previousElementSibling : null;
+    var root = diagnostic ? diagnostic.previousElementSibling : null;
+
     if (!root || !root.hasAttribute('data-blechprofil-length-configurator')) {
         var roots = document.querySelectorAll('[data-blechprofil-length-configurator]');
         root = roots.length ? roots[roots.length - 1] : null;
+    }
+    if (!diagnostic || !diagnostic.hasAttribute('data-bp-diagnostic')) {
+        var diagnostics = document.querySelectorAll('[data-bp-diagnostic]');
+        diagnostic = diagnostics.length ? diagnostics[diagnostics.length - 1] : null;
     }
     if (!root || root.getAttribute('data-bp-booted') === '1') return;
     root.setAttribute('data-bp-booted', '1');
@@ -67,9 +74,9 @@
     var checkButton = root.querySelector('[data-bp-check-button]');
     var addButton = root.querySelector('[data-bp-add-button]');
     var resultBox = root.querySelector('[data-bp-result]');
-    var debugBox = root.querySelector('[data-bp-debug]');
     var lastCheckedVariationId = 0;
     var eligibilityRequestNo = 0;
+    var debugMode = /(?:\?|&)bpdebug=1(?:&|$)/.test(window.location.search);
 
     function toInt(value) {
         var parsed = parseInt(value || '0', 10);
@@ -81,25 +88,51 @@
         return match ? { itemId: toInt(match[1]), variationId: toInt(match[2]) } : { itemId: 0, variationId: 0 };
     }
 
-    function getCurrentIds() {
-        var ids = parseIdsFromPath();
+    function readStoreIds(ids) {
+        var stores = [];
 
         try {
-            if (
-                window.vueApp && vueApp.$store && vueApp.$store.state && vueApp.$store.state.items &&
-                ids.itemId && vueApp.$store.state.items[ids.itemId] &&
-                vueApp.$store.state.items[ids.itemId].variation &&
-                vueApp.$store.state.items[ids.itemId].variation.documents &&
-                vueApp.$store.state.items[ids.itemId].variation.documents[0] &&
-                vueApp.$store.state.items[ids.itemId].variation.documents[0].data
-            ) {
-                var data = vueApp.$store.state.items[ids.itemId].variation.documents[0].data;
-                if (data.item && data.item.id) ids.itemId = toInt(data.item.id);
-                if (data.variation && data.variation.id) ids.variationId = toInt(data.variation.id);
-            }
+            if (window.ceresStore && window.ceresStore.state) stores.push(window.ceresStore);
         } catch (e) {}
 
+        try {
+            if (window.vueApp && window.vueApp.$store && window.vueApp.$store.state) stores.push(window.vueApp.$store);
+        } catch (e) {}
+
+        for (var i = 0; i < stores.length; i++) {
+            try {
+                var state = stores[i].state;
+                if (!state || !state.items || !ids.itemId || !state.items[ids.itemId]) continue;
+
+                var itemState = state.items[ids.itemId];
+                var candidates = [
+                    itemState.variation,
+                    itemState.currentVariation,
+                    itemState.selectedVariation
+                ];
+
+                for (var c = 0; c < candidates.length; c++) {
+                    var candidate = candidates[c];
+                    if (!candidate) continue;
+
+                    if (candidate.id) ids.variationId = toInt(candidate.id);
+
+                    if (
+                        candidate.documents && candidate.documents[0] && candidate.documents[0].data
+                    ) {
+                        var data = candidate.documents[0].data;
+                        if (data.item && data.item.id) ids.itemId = toInt(data.item.id);
+                        if (data.variation && data.variation.id) ids.variationId = toInt(data.variation.id);
+                    }
+                }
+            } catch (e) {}
+        }
+
         return ids;
+    }
+
+    function getCurrentIds() {
+        return readStoreIds(parseIdsFromPath());
     }
 
     function setVisible(visible) {
@@ -114,6 +147,32 @@
         }
     }
 
+    function showDiagnostic(text, isError) {
+        if (!debugMode || !diagnostic) return;
+        diagnostic.classList.remove('d-none', 'alert-warning', 'alert-danger', 'alert-success');
+        diagnostic.classList.add(isError ? 'alert-danger' : 'alert-warning');
+        diagnostic.textContent = text;
+    }
+
+    function hideDiagnostic() {
+        if (diagnostic && !debugMode) diagnostic.classList.add('d-none');
+    }
+
+    function responseAsJson(response) {
+        return response.text().then(function (text) {
+            var json = null;
+            try { json = JSON.parse(text); } catch (e) {}
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + (json && json.message ? json.message : text.substring(0, 500)));
+            }
+            if (!json) {
+                throw new Error('Ungültige Serverantwort: ' + text.substring(0, 500));
+            }
+            return json;
+        });
+    }
+
     function checkEligibility(force) {
         var ids = getCurrentIds();
         var propertyId = toInt(root.getAttribute('data-activation-property-id'));
@@ -121,12 +180,19 @@
 
         if (!ids.itemId || !ids.variationId || !propertyId || !selectionId) {
             setVisible(false);
+            showDiagnostic(
+                'Alpha 0.2.0 Diagnose\n' +
+                'IDs konnten nicht vollständig ermittelt werden.\n' +
+                'Artikel-ID: ' + ids.itemId + '\n' +
+                'Varianten-ID: ' + ids.variationId + '\n' +
+                'Eigenschaft: ' + propertyId + '\n' +
+                'Ja-Auswahl: ' + selectionId,
+                true
+            );
             return;
         }
 
-        if (!force && ids.variationId === lastCheckedVariationId) {
-            return;
-        }
+        if (!force && ids.variationId === lastCheckedVariationId) return;
 
         lastCheckedVariationId = ids.variationId;
         var requestNo = ++eligibilityRequestNo;
@@ -136,21 +202,41 @@
             credentials: 'same-origin',
             headers: { 'Accept': 'application/json' }
         })
-            .then(function (response) { return response.json(); })
+            .then(responseAsJson)
             .then(function (json) {
                 if (requestNo !== eligibilityRequestNo) return;
 
-                if (json && json.enabled === true) {
+                var diagText =
+                    'Alpha 0.2.0 Diagnose\n' +
+                    'Artikel-ID: ' + ids.itemId + '\n' +
+                    'Varianten-ID: ' + ids.variationId + '\n' +
+                    'Variantennummer: ' + (json.variationNumber || '-') + '\n' +
+                    'Eigenschaft: ' + propertyId + '\n' +
+                    'Ja-Auswahl: ' + selectionId + '\n' +
+                    'Quelle: ' + (json.source || '-') + '\n' +
+                    'Freigabe: ' + (json.enabled === true ? 'JA' : 'NEIN') + '\n' +
+                    'Meldung: ' + (json.message || '-');
+
+                showDiagnostic(diagText, json.enabled !== true);
+
+                if (json.enabled === true) {
                     root.setAttribute('data-item-id', String(ids.itemId));
                     root.setAttribute('data-variation-id', String(ids.variationId));
-                    debugBox.textContent = 'Alpha 0.1.9 · Zuschnitt möglich = Ja · Artikel-ID ' + ids.itemId + ' · Varianten-ID ' + ids.variationId + ' · Eigenschaft ' + propertyId + ' · Auswahl ' + selectionId;
                     setVisible(true);
                 } else {
                     setVisible(false);
                 }
             })
-            .catch(function () {
-                if (requestNo === eligibilityRequestNo) setVisible(false);
+            .catch(function (error) {
+                if (requestNo !== eligibilityRequestNo) return;
+                setVisible(false);
+                showDiagnostic(
+                    'Alpha 0.2.0 Diagnose\n' +
+                    'Artikel-ID: ' + ids.itemId + '\n' +
+                    'Varianten-ID: ' + ids.variationId + '\n' +
+                    'Fehler bei der Freigabeprüfung:\n' + error.message,
+                    true
+                );
             });
     }
 
@@ -184,7 +270,7 @@
         addButton.classList.add('d-none');
 
         if (!data.itemId || !data.variationId) {
-            showResult('Artikel- oder Varianten-ID konnte nicht aus der URL ermittelt werden.', true);
+            showResult('Artikel- oder Varianten-ID konnte nicht ermittelt werden.', true);
             return;
         }
 
@@ -207,15 +293,9 @@
             credentials: 'same-origin',
             headers: { 'Accept': 'application/json' }
         })
-            .then(function (response) {
-                return response.json().then(function (json) {
-                    if (!response.ok || !json.success) {
-                        throw new Error(json.message || 'Keine passende Lagerlänge gefunden.');
-                    }
-                    return json;
-                });
-            })
+            .then(responseAsJson)
             .then(function (json) {
+                if (!json.success) throw new Error(json.message || 'Keine passende Lagerlänge gefunden.');
                 var s = json.selected;
                 showResult(
                     '<strong>Ausgangsvariante:</strong> ' + escapeHtml(json.sourceVariationNumber) +
@@ -257,15 +337,9 @@
             },
             body: form.toString()
         })
-            .then(function (response) {
-                return response.json().then(function (json) {
-                    if (!response.ok || !json.success) {
-                        throw new Error(json.message || 'Warenkorb konnte nicht aktualisiert werden.');
-                    }
-                    return json;
-                });
-            })
+            .then(responseAsJson)
             .then(function (json) {
+                if (!json.success) throw new Error(json.message || 'Warenkorb konnte nicht aktualisiert werden.');
                 var s = json.selection.selected;
                 showResult(
                     '<strong>Im Warenkorb:</strong> ' + data.quantity + ' × ' + data.length + ' mm' +
@@ -296,15 +370,17 @@
     });
 
     setVisible(false);
+    hideDiagnostic();
     checkEligibility(true);
 
-    // plentyShop LTS meldet Variantenwechsel clientseitig. Dann lesen wir die aktuelle
-    // Varianten-ID bevorzugt direkt aus dem Vue/Vuex-Store statt nur aus der URL.
-    document.addEventListener('onVariationChanged', function () {
-        window.setTimeout(function () { checkEligibility(true); }, 50);
+    // Mehrere Event-Namen als toleranter Listener. Themes können Variantenwechsel
+    // unterschiedlich weiterreichen. Zusätzlich läuft ein leichter Polling-Fallback.
+    ['onVariationChanged', 'variationChanged', 'onVariationSelect'].forEach(function (eventName) {
+        document.addEventListener(eventName, function () {
+            window.setTimeout(function () { checkEligibility(true); }, 80);
+        });
     });
 
-    // Fallback für individuelle Themes/Plugins, die das Event nicht weiterreichen.
     window.setInterval(function () {
         checkEligibility(false);
     }, 750);

@@ -4,11 +4,11 @@
     "de": "Blech + Profil Wunschlängen-Konfigurator",
     "en": "Blech + Profil custom length configurator"
   },
-  "description": "Alpha plugin for plentyShop LTS: custom-length configurator activated by a variation property selection.",
+  "description": "Alpha plugin for plentyShop LTS: custom-length configurator activated via a direct PIM property-selection check.",
   "namespace": "BlechProfilLengthConfigurator",
   "author": "Steffen Schreiber",
   "type": "template",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "keywords": [
     "plentyShop LTS",
     "custom length",
