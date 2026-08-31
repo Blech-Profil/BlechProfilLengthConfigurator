@@ -152,7 +152,7 @@ class LengthResolverService
             'requiredPerPiece' => $requiredPerPiece,
             'selected' => $selected,
             'candidateCount' => count($candidates),
-            'alphaNote' => 'Alpha 0.1.6: serverseitige Artikel-Freigabe aktiv. Exakte Nettobestandsmenge wird nach erfolgreichem Frontend-Test ergänzt.'
+            'alphaNote' => 'Alpha 0.1.7: serverseitige Variantenstamm-Freigabe aktiv. Exakte Nettobestandsmenge wird nach erfolgreichem Frontend-Test ergänzt.'
         ];
     }
 
@@ -188,7 +188,7 @@ class LengthResolverService
         $prefixes = array_filter(array_map('trim', explode(',', $value)));
 
         foreach ($prefixes as $prefix) {
-            if ($prefix !== '' && strpos($stem, $prefix) === 0) {
+            if ($prefix !== '' && $stem === $prefix) {
                 return true;
             }
         }

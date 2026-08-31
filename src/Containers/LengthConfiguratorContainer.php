@@ -2,6 +2,7 @@
 
 namespace BlechProfilLengthConfigurator\Containers;
 
+use Plenty\Modules\Item\Variation\Contracts\VariationRepositoryContract;
 use Plenty\Plugin\ConfigRepository;
 use Plenty\Plugin\Http\Request;
 use Plenty\Plugin\Templates\Twig;
@@ -12,6 +13,7 @@ class LengthConfiguratorContainer
     {
         $config = pluginApp(ConfigRepository::class);
         $request = pluginApp(Request::class);
+        $variationRepository = pluginApp(VariationRepositoryContract::class);
 
         $itemId = 0;
         $variationId = 0;
@@ -32,14 +34,35 @@ class LengthConfiguratorContainer
             $variationId = $this->extractVariationId($item);
         }
 
-        // Fail closed: render absolutely nothing unless this article is enabled.
-        if ($itemId <= 0 || !$this->isItemEnabled($itemId, $config)) {
+        // First safety gate: only explicitly enabled Plenty items are considered at all.
+        if ($itemId <= 0 || $variationId <= 0 || !$this->isItemEnabled($itemId, $config)) {
+            return '';
+        }
+
+        // Critical gate: load the REAL current variation from Plenty and check its number.
+        // Article 260 contains many diameters. The variation number tells us the material/dimension group.
+        try {
+            $variation = $variationRepository->findById($variationId);
+        } catch (\Throwable $e) {
+            return '';
+        }
+
+        if (!$variation || (int) $variation->itemId !== $itemId) {
+            return '';
+        }
+
+        $variationNumber = trim((string) $variation->number);
+        $parsed = $this->parseVariationNumber($variationNumber);
+
+        if ($parsed === null || !$this->isStemEnabled($parsed['stem'], $config)) {
             return '';
         }
 
         return $twig->render('BlechProfilLengthConfigurator::content.LengthConfigurator', [
             'contextItemId' => $itemId,
             'contextVariationId' => $variationId,
+            'contextVariationNumber' => $variationNumber,
+            'contextStem' => $parsed['stem'],
             'minLength' => (int) $config->get('BlechProfilLengthConfigurator.length.minLength', 50),
             'maxLength' => (int) $config->get('BlechProfilLengthConfigurator.length.maxLength', 6000),
             'sawKerf' => (int) $config->get('BlechProfilLengthConfigurator.length.sawKerf', 4)
@@ -110,6 +133,18 @@ class LengthConfiguratorContainer
         return 0;
     }
 
+    private function parseVariationNumber(string $number): ?array
+    {
+        if (!preg_match('/^(.+)_([0-9]{2,6})$/', $number, $matches)) {
+            return null;
+        }
+
+        return [
+            'stem' => $matches[1],
+            'length' => (int) $matches[2]
+        ];
+    }
+
     private function isItemEnabled(int $itemId, ConfigRepository $config): bool
     {
         $value = (string) $config->get('BlechProfilLengthConfigurator.length.enabledItemIds', '260');
@@ -117,6 +152,20 @@ class LengthConfiguratorContainer
 
         foreach ($ids as $id) {
             if ((int) $id === $itemId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isStemEnabled(string $stem, ConfigRepository $config): bool
+    {
+        $value = (string) $config->get('BlechProfilLengthConfigurator.length.enabledPrefixes', 'ERD0204305');
+        $stems = array_filter(array_map('trim', explode(',', $value)));
+
+        foreach ($stems as $enabledStem) {
+            if ($enabledStem !== '' && $stem === $enabledStem) {
                 return true;
             }
         }

@@ -9,7 +9,7 @@
   {
     "tab": "Konfigurator",
     "key": "length.enabledPrefixes",
-    "label": "Aktive Nummernstämme (Komma-getrennt)",
+    "label": "Aktive Variantenstämme (exakt, Komma-getrennt)",
     "type": "text",
     "default": "ERD0204305"
   },

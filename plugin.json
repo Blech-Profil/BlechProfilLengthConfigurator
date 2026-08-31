@@ -4,11 +4,11 @@
     "de": "Blech + Profil Wunschlängen-Konfigurator",
     "en": "Blech + Profil custom length configurator"
   },
-  "description": "Alpha plugin for plentyShop LTS: custom-length configurator using server-side item and variation ID gating before rendering.",
+  "description": "Alpha plugin for plentyShop LTS: custom-length configurator using server-side variation-number stem gating before rendering.",
   "namespace": "BlechProfilLengthConfigurator",
   "author": "Steffen Schreiber",
   "type": "template",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "keywords": [
     "plentyShop LTS",
     "custom length",
