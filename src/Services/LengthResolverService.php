@@ -152,7 +152,7 @@ class LengthResolverService
             'requiredPerPiece' => $requiredPerPiece,
             'selected' => $selected,
             'candidateCount' => count($candidates),
-            'alphaNote' => 'Alpha 0.1.5: UI/ID-/Routen-Test. Exakte Nettobestandsmenge wird nach erfolgreichem Frontend-Test ergänzt.'
+            'alphaNote' => 'Alpha 0.1.6: serverseitige Artikel-Freigabe aktiv. Exakte Nettobestandsmenge wird nach erfolgreichem Frontend-Test ergänzt.'
         ];
     }
 

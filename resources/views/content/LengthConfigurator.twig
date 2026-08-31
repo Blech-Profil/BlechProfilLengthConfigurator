@@ -1,9 +1,7 @@
 <div class="blechprofil-length-configurator card mb-3"
-     style="display:none"
      data-blechprofil-length-configurator
      data-context-item-id="{{ contextItemId }}"
      data-context-variation-id="{{ contextVariationId }}"
-     data-enabled-item-ids="{{ enabledItemIds }}"
      data-min-length="{{ minLength }}"
      data-max-length="{{ maxLength }}"
      data-saw-kerf="{{ sawKerf }}">
@@ -47,7 +45,7 @@
         </button>
 
         <small class="d-block text-muted mt-2" data-bp-debug>
-            Alpha 0.1.5 · Testfreigabe nur Artikel-ID 260.
+            Alpha 0.1.6 · serverseitig freigegeben · Artikel-ID {{ contextItemId }} · Varianten-ID {{ contextVariationId }}
         </small>
     </div>
 </div>
@@ -71,13 +69,6 @@
         return match ? { itemId: toInt(match[1]), variationId: toInt(match[2]) } : { itemId: 0, variationId: 0 };
     }
 
-    function getEnabledItemIds() {
-        return String(root.getAttribute('data-enabled-item-ids') || '')
-            .split(',')
-            .map(function (value) { return toInt(value.trim()); })
-            .filter(function (value) { return value > 0; });
-    }
-
     function resolveIds() {
         var pathIds = parseIdsFromPath();
         return {
@@ -87,26 +78,8 @@
     }
 
     var ids = resolveIds();
-    var enabledItemIds = getEnabledItemIds();
-
-    // Alpha 0.1.5: Fail-closed. Der Konfigurator bleibt standardmäßig unsichtbar
-    // und wird nur auf ausdrücklich freigeschalteten Artikel-IDs eingeblendet.
-    // Für den ersten Live-Test ist Artikel 260 zusätzlich hart abgesichert.
-    if (ids.itemId !== 260 || enabledItemIds.indexOf(ids.itemId) === -1) {
-        if (root.parentNode) {
-            root.parentNode.removeChild(root);
-        }
-        return;
-    }
-
-    root.style.display = '';
     root.setAttribute('data-item-id', String(ids.itemId));
     root.setAttribute('data-variation-id', String(ids.variationId));
-
-    var debug = root.querySelector('[data-bp-debug]');
-    if (debug) {
-        debug.textContent = 'Alpha 0.1.5 · Artikel-ID ' + ids.itemId + ' · Varianten-ID ' + ids.variationId;
-    }
 
     if (root.getAttribute('data-bp-booted') === '1') return;
     root.setAttribute('data-bp-booted', '1');
